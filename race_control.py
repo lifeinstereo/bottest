@@ -2,29 +2,59 @@ import requests
 import os
 import json
 
-WEBHOOK_URL = os.environ["WEBHOOK_URL"]
 API_URL = "https://api.openf1.org/v1/race_control?session_key=latest"
+WEBHOOK = os.environ["WEBHOOK_URL"]
 
-STATE_FILE = "last_id.txt"
+STATE_FILE = "last_timestamp.txt"
 
-# Letzte gespeicherte ID laden
+# letzte verarbeitete Zeit laden
 try:
     with open(STATE_FILE, "r") as f:
-        last_id = f.read().strip()
+        last_time = f.read().strip()
 except:
-    last_id = None
+    last_time = ""
 
 data = requests.get(API_URL).json()
 
-if not data:
-    exit()
+new_last_time = last_time
 
-latest = data[-1]
-current_id = latest["date"] + latest["message"]
+for item in data:
 
-if current_id != last_id:
-    message = f"🚦 **{latest.get('category','Race Control')}**\n{latest['message']}"
-    requests.post(WEBHOOK_URL, json={"content": message})
+    timestamp = item["date"]
 
-    with open(STATE_FILE, "w") as f:
-        f.write(current_id)
+    if timestamp <= last_time:
+        continue
+
+    category = item.get("category", "Race Control")
+    message = item.get("message", "")
+
+    color = 8421504
+
+    cat = category.upper()
+
+    if "RED" in cat:
+        color = 16711680
+    elif "YELLOW" in cat:
+        color = 16776960
+    elif "SAFETY" in cat:
+        color = 16753920
+    elif "GREEN" in cat:
+        color = 65280
+
+    embed = {
+        "title": category,
+        "description": message,
+        "color": color
+    }
+
+    payload = {
+        "embeds": [embed]
+    }
+
+    requests.post(WEBHOOK, json=payload)
+
+    new_last_time = timestamp
+
+# neue letzte Zeit speichern
+with open(STATE_FILE, "w") as f:
+    f.write(new_last_time)
