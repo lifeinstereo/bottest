@@ -1,26 +1,28 @@
-name: F1 Race Control Bot
+name: F1 Discord Bot
 
 on:
-  schedule:
-    - cron: "*/2 * * * *"
   workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
 
 jobs:
-  run-script:
+  run-bot:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Repository laden
+        uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.11
+      - name: Script ausführen
+        run: python script.py
 
-      - name: Install dependencies
-        run: pip install requests
+      - name: 2 Minuten warten
+        run: sleep 120
 
-      - name: Run bot
-        run: python race_control.py
-        env:
-          WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
+      - name: Workflow erneut starten
+        run: |
+          curl -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+          https://api.github.com/repos/${{ github.repository }}/actions/workflows/f1bot.yml/dispatches \
+          -d '{"ref":"main"}'
